@@ -1,13 +1,20 @@
+import type { GetServerSideProps, InferGetServerSidePropsType } from "next";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { findTranscriptById } from "@/lib/transcript-store";
 import {
-  getExpiresAt,
   getRemainingTime,
-  getTranscriptById,
-  isTranscriptExpired,
   transcriptRetentionDays,
+  type TranscriptRecord,
 } from "@/lib/transcripts";
+
+type TranscriptPageProps =
+  | {
+      transcript: TranscriptRecord;
+    }
+  | {
+      transcript: null;
+    };
 
 function TicketIcon({ className = "" }: { className?: string }) {
   return (
@@ -52,10 +59,22 @@ function FileErrorIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export default function TranscriptPage() {
-  const router = useRouter();
-  const id = typeof router.query.id === "string" ? router.query.id : "";
-  const transcript = useMemo(() => (id ? getTranscriptById(id) : undefined), [id]);
+export const getServerSideProps: GetServerSideProps<
+  TranscriptPageProps
+> = async ({ params }) => {
+  const id = typeof params?.id === "string" ? params.id : "";
+  const transcript = id ? await findTranscriptById(id) : null;
+
+  return {
+    props: {
+      transcript,
+    },
+  };
+};
+
+export default function TranscriptPage({
+  transcript,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -63,15 +82,7 @@ export default function TranscriptPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const expired = transcript ? isTranscriptExpired(transcript, now) : false;
-  const remaining = transcript ? getRemainingTime(transcript, now) : undefined;
-  const expiresAt = transcript ? getExpiresAt(transcript) : undefined;
-
-  if (!router.isReady) {
-    return null;
-  }
-
-  if (!transcript || expired) {
+  if (!transcript) {
     return (
       <main className="grid min-h-screen place-items-center bg-[#050608] px-5 text-white">
         <section className="w-full max-w-xl rounded-xl border border-[#252a31] bg-[#111316] px-6 py-10 text-center">
@@ -96,6 +107,9 @@ export default function TranscriptPage() {
     );
   }
 
+  const remaining = getRemainingTime(transcript, now);
+  const expiresAt = new Date(transcript.expiresAt);
+
   return (
     <main className="min-h-screen bg-[#050608] text-white">
       <header className="sticky top-0 z-10 border-b border-[#152233] bg-[#0b0f15]/95 px-5 py-4 backdrop-blur sm:px-8">
@@ -118,8 +132,7 @@ export default function TranscriptPage() {
           </div>
 
           <div className="rounded-xl border border-[#28313c] bg-[#050608] px-4 py-3 text-sm font-bold text-[#d4d4d8]">
-            Expira em {remaining?.days}d {remaining?.hours}h{" "}
-            {remaining?.minutes}m
+            Expira em {remaining.days}d {remaining.hours}h {remaining.minutes}m
           </div>
         </div>
       </header>
@@ -137,7 +150,7 @@ export default function TranscriptPage() {
               <p>{transcript.displayDate}</p>
               <p>
                 Remove em{" "}
-                {expiresAt?.toLocaleDateString("pt-BR", {
+                {expiresAt.toLocaleDateString("pt-BR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric",

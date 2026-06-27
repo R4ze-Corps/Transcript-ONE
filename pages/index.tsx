@@ -1,10 +1,6 @@
 import Link from "next/link";
-import { FormEvent, ReactNode, useMemo, useState } from "react";
-import {
-  getActiveTranscripts,
-  getRemainingTime,
-  getTranscriptById,
-} from "@/lib/transcripts";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { getRemainingTime, type TranscriptRecord } from "@/lib/transcripts";
 
 function TabButton({
   active,
@@ -148,42 +144,88 @@ function ExternalIcon({ className = "" }: { className?: string }) {
 export default function Home() {
   const [ticketId, setTicketId] = useState("");
   const [searchedId, setSearchedId] = useState("");
+  const [transcript, setTranscript] = useState<TranscriptRecord | null>(null);
+  const [recentTranscripts, setRecentTranscripts] = useState<
+    TranscriptRecord[]
+  >([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchAttempted, setSearchAttempted] = useState(false);
   const [activeTab, setActiveTab] = useState<"transcript" | "history">(
     "transcript",
   );
 
-  const activeTranscripts = useMemo(() => getActiveTranscripts(), []);
   const normalizedTicketId = ticketId.trim().toUpperCase();
-  const transcript = useMemo(() => {
-    const foundTranscript = searchedId ? getTranscriptById(searchedId) : undefined;
-    if (!foundTranscript) {
-      return undefined;
+  const hasSearch = searchedId.length > 0;
+  const notFound =
+    activeTab === "transcript" &&
+    searchAttempted &&
+    hasSearch &&
+    !searchLoading &&
+    !transcript;
+
+  useEffect(() => {
+    async function loadRecentTranscripts() {
+      setHistoryLoading(true);
+      try {
+        const response = await fetch("/api/transcripts");
+        if (!response.ok) {
+          setRecentTranscripts([]);
+          return;
+        }
+
+        const data = (await response.json()) as {
+          transcripts?: TranscriptRecord[];
+        };
+        setRecentTranscripts(data.transcripts || []);
+      } finally {
+        setHistoryLoading(false);
+      }
     }
 
-    return activeTranscripts.some((item) => item.id === foundTranscript.id)
-      ? foundTranscript
-      : undefined;
-  }, [activeTranscripts, searchedId]);
-  const hasSearch = searchedId.length > 0;
-  const notFound = activeTab === "transcript" && hasSearch && !transcript;
+    loadRecentTranscripts();
+  }, []);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (normalizedTicketId.length > 0) {
       setSearchedId(normalizedTicketId);
       setActiveTab("transcript");
+      setSearchAttempted(true);
+      setSearchLoading(true);
+      setTranscript(null);
+
+      try {
+        const response = await fetch(`/api/transcripts/${normalizedTicketId}`);
+        if (!response.ok) {
+          setTranscript(null);
+          return;
+        }
+
+        const data = (await response.json()) as {
+          transcript?: TranscriptRecord;
+        };
+        setTranscript(data.transcript || null);
+      } finally {
+        setSearchLoading(false);
+      }
     }
   }
 
   function resetSearch() {
     setTicketId("");
     setSearchedId("");
+    setTranscript(null);
+    setSearchAttempted(false);
+    setSearchLoading(false);
     setActiveTab("transcript");
   }
 
   function openTranscript(id: string) {
     setTicketId(id);
     setSearchedId(id);
+    setTranscript(null);
+    setSearchAttempted(false);
     setActiveTab("transcript");
   }
 
@@ -310,7 +352,19 @@ export default function Home() {
                 </div>
 
                 <div className="divide-y divide-[#141e2b]">
-                  {activeTranscripts.map((item) => {
+                  {historyLoading ? (
+                    <div className="px-6 py-8 text-sm font-bold text-[#8d8f96]">
+                      Carregando historico...
+                    </div>
+                  ) : null}
+
+                  {!historyLoading && recentTranscripts.length === 0 ? (
+                    <div className="px-6 py-8 text-sm font-bold text-[#8d8f96]">
+                      Nenhum transcript salvo no banco ainda.
+                    </div>
+                  ) : null}
+
+                  {recentTranscripts.map((item) => {
                     const remaining = getRemainingTime(item);
 
                     return (

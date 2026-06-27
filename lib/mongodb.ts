@@ -1,11 +1,7 @@
 import { MongoClient } from "mongodb";
 import { attachDatabasePool } from "@vercel/functions";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
-}
-
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
 const options = { appName: "devrel.template.nextjs" };
 
 let client: MongoClient;

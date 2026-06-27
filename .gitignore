@@ -2,3 +2,5 @@ node_modules/
 .next/
 .agents/
 .env*.local
+my-mongodb-app/node_modules/
+my-mongodb-app/.next/

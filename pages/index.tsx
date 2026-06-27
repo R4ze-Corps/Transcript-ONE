@@ -1,151 +1,10 @@
+import Link from "next/link";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
-
-type Transcript = {
-  id: string;
-  title: string;
-  status: string;
-  date: string;
-  agent: string;
-  duration: string;
-  serverName: string;
-  serverIcon: string;
-  messages: Array<{
-    author: string;
-    role: "agent" | "member";
-    avatar: string;
-    time: string;
-    content: string;
-  }>;
-};
-
-const recentTranscripts: Transcript[] = [
-  {
-    id: "38OGACM",
-    title: "Atendimento localizado",
-    status: "Transcript disponivel para consulta.",
-    date: "Hoje, 20:42",
-    agent: "Megan",
-    duration: "18 min",
-    serverName: "RAZE Support",
-    serverIcon: "https://cdn.discordapp.com/embed/avatars/0.png",
-    messages: [
-      {
-        author: "Megan",
-        role: "agent",
-        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-        time: "20:24",
-        content: "Ola, ticket aberto. Me envie o contexto do atendimento.",
-      },
-      {
-        author: "Cliente",
-        role: "member",
-        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
-        time: "20:27",
-        content: "Preciso revisar o transcript do meu suporte anterior.",
-      },
-      {
-        author: "Megan",
-        role: "agent",
-        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-        time: "20:36",
-        content: "Localizei o atendimento e deixei o registro disponivel.",
-      },
-      {
-        author: "Cliente",
-        role: "member",
-        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
-        time: "20:42",
-        content: "Perfeito, obrigado pelo retorno.",
-      },
-    ],
-  },
-  {
-    id: "91KQ2BR",
-    title: "Suporte finalizado",
-    status: "Duvida sobre acesso resolvida com sucesso.",
-    date: "Hoje, 18:15",
-    agent: "Megan",
-    duration: "11 min",
-    serverName: "RAZE Support",
-    serverIcon: "https://cdn.discordapp.com/embed/avatars/2.png",
-    messages: [
-      {
-        author: "Megan",
-        role: "agent",
-        avatar: "https://cdn.discordapp.com/embed/avatars/2.png",
-        time: "18:04",
-        content: "Acesso validado. Vou acompanhar a solicitacao.",
-      },
-      {
-        author: "Cliente",
-        role: "member",
-        avatar: "https://cdn.discordapp.com/embed/avatars/3.png",
-        time: "18:15",
-        content: "Funcionou por aqui, pode finalizar.",
-      },
-    ],
-  },
-  {
-    id: "74L0PXC",
-    title: "Revisao de entrega",
-    status: "Registro salvo apos confirmacao do atendimento.",
-    date: "Ontem, 22:08",
-    agent: "Megan",
-    duration: "24 min",
-    serverName: "RAZE Support",
-    serverIcon: "https://cdn.discordapp.com/embed/avatars/4.png",
-    messages: [
-      {
-        author: "Megan",
-        role: "agent",
-        avatar: "https://cdn.discordapp.com/embed/avatars/4.png",
-        time: "21:44",
-        content: "Vou revisar a entrega e registrar o resultado.",
-      },
-      {
-        author: "Cliente",
-        role: "member",
-        avatar: "https://cdn.discordapp.com/embed/avatars/5.png",
-        time: "22:08",
-        content: "Confirmado, esta tudo certo.",
-      },
-    ],
-  },
-  {
-    id: "52VR9AD",
-    title: "Solicitacao arquivada",
-    status: "Transcript protegido e disponivel no historico.",
-    date: "Ontem, 16:37",
-    agent: "Megan",
-    duration: "9 min",
-    serverName: "RAZE Support",
-    serverIcon: "https://cdn.discordapp.com/embed/avatars/0.png",
-    messages: [
-      {
-        author: "Megan",
-        role: "agent",
-        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-        time: "16:28",
-        content: "Solicitacao registrada e arquivada no historico.",
-      },
-      {
-        author: "Cliente",
-        role: "member",
-        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
-        time: "16:37",
-        content: "Obrigado, pode encerrar.",
-      },
-    ],
-  },
-];
-
-const sampleTranscripts = recentTranscripts.reduce<Record<string, Transcript>>(
-  (transcripts, transcript) => {
-    transcripts[transcript.id] = transcript;
-    return transcripts;
-  },
-  {},
-);
+import {
+  getActiveTranscripts,
+  getRemainingTime,
+  getTranscriptById,
+} from "@/lib/transcripts";
 
 function TabButton({
   active,
@@ -289,19 +148,22 @@ function ExternalIcon({ className = "" }: { className?: string }) {
 export default function Home() {
   const [ticketId, setTicketId] = useState("");
   const [searchedId, setSearchedId] = useState("");
-  const [openedConversationId, setOpenedConversationId] = useState("");
   const [activeTab, setActiveTab] = useState<"transcript" | "history">(
     "transcript",
   );
 
+  const activeTranscripts = useMemo(() => getActiveTranscripts(), []);
   const normalizedTicketId = ticketId.trim().toUpperCase();
-  const transcript = useMemo(
-    () => sampleTranscripts[searchedId],
-    [searchedId],
-  );
-  const openedConversation = openedConversationId
-    ? sampleTranscripts[openedConversationId]
-    : undefined;
+  const transcript = useMemo(() => {
+    const foundTranscript = searchedId ? getTranscriptById(searchedId) : undefined;
+    if (!foundTranscript) {
+      return undefined;
+    }
+
+    return activeTranscripts.some((item) => item.id === foundTranscript.id)
+      ? foundTranscript
+      : undefined;
+  }, [activeTranscripts, searchedId]);
   const hasSearch = searchedId.length > 0;
   const notFound = activeTab === "transcript" && hasSearch && !transcript;
 
@@ -309,7 +171,6 @@ export default function Home() {
     event.preventDefault();
     if (normalizedTicketId.length > 0) {
       setSearchedId(normalizedTicketId);
-      setOpenedConversationId("");
       setActiveTab("transcript");
     }
   }
@@ -317,19 +178,13 @@ export default function Home() {
   function resetSearch() {
     setTicketId("");
     setSearchedId("");
-    setOpenedConversationId("");
     setActiveTab("transcript");
   }
 
   function openTranscript(id: string) {
     setTicketId(id);
     setSearchedId(id);
-    setOpenedConversationId("");
     setActiveTab("transcript");
-  }
-
-  function openConversation(id: string) {
-    setOpenedConversationId(id);
   }
 
   return (
@@ -412,10 +267,11 @@ export default function Home() {
                 </section>
 
                 {transcript ? (
-                  <button
-                    className="w-full rounded-xl border border-[#173452] bg-[#0d1117] px-6 py-5 text-left transition hover:border-[#349bf3] hover:bg-[#101722]"
-                    onClick={() => openConversation(transcript.id)}
-                    type="button"
+                  <Link
+                    className="block w-full rounded-xl border border-[#173452] bg-[#0d1117] px-6 py-5 text-left transition hover:border-[#349bf3] hover:bg-[#101722]"
+                    href={`/transcript/${transcript.id}`}
+                    rel="noopener noreferrer"
+                    target="_blank"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -427,70 +283,16 @@ export default function Home() {
                         </h2>
                       </div>
                       <span className="rounded-full border border-[#28313c] bg-[#050608] px-3 py-1 text-xs font-bold text-[#8d8f96]">
-                        {transcript.date}
+                        {transcript.displayDate}
                       </span>
                     </div>
                     <p className="mt-4 text-sm text-[#8d8f96]">
                       {transcript.status}
                     </p>
                     <p className="mt-4 text-xs font-bold text-[#349bf3]">
-                      Clique para abrir a conversa
+                      Abrir conversa em nova aba
                     </p>
-                  </button>
-                ) : null}
-
-                {openedConversation ? (
-                  <section className="w-full overflow-hidden rounded-xl border border-[#173452] bg-[#0d1117]">
-                    <div className="flex items-center gap-3 border-b border-[#152233] bg-[#10141b] px-6 py-5">
-                      <img
-                        alt={`Foto do servidor ${openedConversation.serverName}`}
-                        className="h-12 w-12 rounded-full border border-[#28313c] bg-[#050608]"
-                        src={openedConversation.serverIcon}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase text-[#349bf3]">
-                          Servidor Discord
-                        </p>
-                        <h2 className="truncate text-lg font-extrabold">
-                          {openedConversation.serverName}
-                        </h2>
-                      </div>
-                    </div>
-
-                    <div className="space-y-5 px-6 py-6">
-                      {openedConversation.messages.map((message, index) => (
-                        <article
-                          className="grid grid-cols-[40px_1fr] gap-3"
-                          key={`${message.author}-${message.time}-${index}`}
-                        >
-                          <img
-                            alt={`Foto do Discord de ${message.author}`}
-                            className="h-10 w-10 rounded-full bg-[#050608]"
-                            src={message.avatar}
-                          />
-                          <div>
-                            <div className="flex flex-wrap items-baseline gap-2">
-                              <span
-                                className={`font-bold ${
-                                  message.role === "agent"
-                                    ? "text-[#349bf3]"
-                                    : "text-white"
-                                }`}
-                              >
-                                {message.author}
-                              </span>
-                              <span className="text-xs font-bold text-[#777a82]">
-                                {message.time}
-                              </span>
-                            </div>
-                            <p className="mt-1 rounded-lg border border-[#141e2b] bg-[#050608] px-4 py-3 text-sm leading-6 text-[#d4d4d8]">
-                              {message.content}
-                            </p>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
+                  </Link>
                 ) : null}
               </>
             ) : (
@@ -508,40 +310,57 @@ export default function Home() {
                 </div>
 
                 <div className="divide-y divide-[#141e2b]">
-                  {recentTranscripts.map((item) => (
-                    <article
-                      className="grid gap-4 px-6 py-5 transition hover:bg-[#0b1017] sm:grid-cols-[1fr_auto]"
-                      key={item.id}
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-[#349bf3]">
-                            {item.id}
-                          </span>
-                          <span className="rounded-full bg-[#10141b] px-2 py-1 text-[11px] font-bold text-[#8d8f96]">
-                            {item.date}
-                          </span>
-                        </div>
-                        <h3 className="mt-2 text-base font-extrabold">
-                          {item.title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-[#8d8f96]">
-                          {item.status}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-[#777a82]">
-                          <span>Responsavel: {item.agent}</span>
-                          <span>Duracao: {item.duration}</span>
-                        </div>
-                      </div>
-                      <button
-                        className="h-10 rounded-lg border border-[#28313c] bg-[#050608] px-4 text-sm font-bold text-white transition hover:border-[#349bf3] hover:text-[#349bf3]"
-                        onClick={() => openTranscript(item.id)}
-                        type="button"
+                  {activeTranscripts.map((item) => {
+                    const remaining = getRemainingTime(item);
+
+                    return (
+                      <article
+                        className="grid gap-4 px-6 py-5 transition hover:bg-[#0b1017] sm:grid-cols-[1fr_auto]"
+                        key={item.id}
                       >
-                        Ver
-                      </button>
-                    </article>
-                  ))}
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-[#349bf3]">
+                              {item.id}
+                            </span>
+                            <span className="rounded-full bg-[#10141b] px-2 py-1 text-[11px] font-bold text-[#8d8f96]">
+                              {item.displayDate}
+                            </span>
+                          </div>
+                          <h3 className="mt-2 text-base font-extrabold">
+                            {item.title}
+                          </h3>
+                          <p className="mt-2 text-sm leading-6 text-[#8d8f96]">
+                            {item.status}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-[#777a82]">
+                            <span>Responsavel: {item.agent}</span>
+                            <span>Duracao: {item.duration}</span>
+                            <span>
+                              Expira em: {remaining.days}d {remaining.hours}h
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="h-10 rounded-lg border border-[#28313c] bg-[#050608] px-4 text-sm font-bold text-white transition hover:border-[#349bf3] hover:text-[#349bf3]"
+                            onClick={() => openTranscript(item.id)}
+                            type="button"
+                          >
+                            Ver ID
+                          </button>
+                          <Link
+                            className="inline-flex h-10 items-center rounded-lg bg-[#2b6294] px-4 text-sm font-bold text-white transition hover:bg-[#349bf3]"
+                            href={`/transcript/${item.id}`}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            Abrir
+                          </Link>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -556,7 +375,7 @@ export default function Home() {
                 {
                   icon: <ClockIcon className="h-6 w-6" />,
                   title: "30 Dias",
-                  text: "Arquivos disponiveis por 30 dias apos a entrega.",
+                  text: "Arquivos removidos automaticamente apos 30 dias.",
                 },
                 {
                   icon: <ExternalIcon className="h-6 w-6" />,
@@ -586,7 +405,8 @@ export default function Home() {
               Transcript nao encontrado
             </h1>
             <p className="mt-10 text-base text-[#a0a4ad]">
-              O transcript que voce esta procurando nao existe ou foi removido.
+              O transcript que voce esta procurando nao existe, foi removido ou
+              expirou apos 30 dias.
             </p>
             <button
               className="mt-5 rounded-lg border border-[#2b3038] bg-[#050608] px-4 py-2 text-sm font-bold text-white transition hover:border-[#349bf3]"

@@ -7,6 +7,15 @@ type Transcript = {
   date: string;
   agent: string;
   duration: string;
+  serverName: string;
+  serverIcon: string;
+  messages: Array<{
+    author: string;
+    role: "agent" | "member";
+    avatar: string;
+    time: string;
+    content: string;
+  }>;
 };
 
 const recentTranscripts: Transcript[] = [
@@ -17,6 +26,38 @@ const recentTranscripts: Transcript[] = [
     date: "Hoje, 20:42",
     agent: "Megan",
     duration: "18 min",
+    serverName: "RAZE Support",
+    serverIcon: "https://cdn.discordapp.com/embed/avatars/0.png",
+    messages: [
+      {
+        author: "Megan",
+        role: "agent",
+        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+        time: "20:24",
+        content: "Ola, ticket aberto. Me envie o contexto do atendimento.",
+      },
+      {
+        author: "Cliente",
+        role: "member",
+        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
+        time: "20:27",
+        content: "Preciso revisar o transcript do meu suporte anterior.",
+      },
+      {
+        author: "Megan",
+        role: "agent",
+        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+        time: "20:36",
+        content: "Localizei o atendimento e deixei o registro disponivel.",
+      },
+      {
+        author: "Cliente",
+        role: "member",
+        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
+        time: "20:42",
+        content: "Perfeito, obrigado pelo retorno.",
+      },
+    ],
   },
   {
     id: "91KQ2BR",
@@ -25,6 +66,24 @@ const recentTranscripts: Transcript[] = [
     date: "Hoje, 18:15",
     agent: "Megan",
     duration: "11 min",
+    serverName: "RAZE Support",
+    serverIcon: "https://cdn.discordapp.com/embed/avatars/2.png",
+    messages: [
+      {
+        author: "Megan",
+        role: "agent",
+        avatar: "https://cdn.discordapp.com/embed/avatars/2.png",
+        time: "18:04",
+        content: "Acesso validado. Vou acompanhar a solicitacao.",
+      },
+      {
+        author: "Cliente",
+        role: "member",
+        avatar: "https://cdn.discordapp.com/embed/avatars/3.png",
+        time: "18:15",
+        content: "Funcionou por aqui, pode finalizar.",
+      },
+    ],
   },
   {
     id: "74L0PXC",
@@ -33,6 +92,24 @@ const recentTranscripts: Transcript[] = [
     date: "Ontem, 22:08",
     agent: "Megan",
     duration: "24 min",
+    serverName: "RAZE Support",
+    serverIcon: "https://cdn.discordapp.com/embed/avatars/4.png",
+    messages: [
+      {
+        author: "Megan",
+        role: "agent",
+        avatar: "https://cdn.discordapp.com/embed/avatars/4.png",
+        time: "21:44",
+        content: "Vou revisar a entrega e registrar o resultado.",
+      },
+      {
+        author: "Cliente",
+        role: "member",
+        avatar: "https://cdn.discordapp.com/embed/avatars/5.png",
+        time: "22:08",
+        content: "Confirmado, esta tudo certo.",
+      },
+    ],
   },
   {
     id: "52VR9AD",
@@ -41,6 +118,24 @@ const recentTranscripts: Transcript[] = [
     date: "Ontem, 16:37",
     agent: "Megan",
     duration: "9 min",
+    serverName: "RAZE Support",
+    serverIcon: "https://cdn.discordapp.com/embed/avatars/0.png",
+    messages: [
+      {
+        author: "Megan",
+        role: "agent",
+        avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+        time: "16:28",
+        content: "Solicitacao registrada e arquivada no historico.",
+      },
+      {
+        author: "Cliente",
+        role: "member",
+        avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
+        time: "16:37",
+        content: "Obrigado, pode encerrar.",
+      },
+    ],
   },
 ];
 
@@ -194,6 +289,7 @@ function ExternalIcon({ className = "" }: { className?: string }) {
 export default function Home() {
   const [ticketId, setTicketId] = useState("");
   const [searchedId, setSearchedId] = useState("");
+  const [openedConversationId, setOpenedConversationId] = useState("");
   const [activeTab, setActiveTab] = useState<"transcript" | "history">(
     "transcript",
   );
@@ -203,6 +299,9 @@ export default function Home() {
     () => sampleTranscripts[searchedId],
     [searchedId],
   );
+  const openedConversation = openedConversationId
+    ? sampleTranscripts[openedConversationId]
+    : undefined;
   const hasSearch = searchedId.length > 0;
   const notFound = activeTab === "transcript" && hasSearch && !transcript;
 
@@ -210,6 +309,7 @@ export default function Home() {
     event.preventDefault();
     if (normalizedTicketId.length > 0) {
       setSearchedId(normalizedTicketId);
+      setOpenedConversationId("");
       setActiveTab("transcript");
     }
   }
@@ -217,13 +317,19 @@ export default function Home() {
   function resetSearch() {
     setTicketId("");
     setSearchedId("");
+    setOpenedConversationId("");
     setActiveTab("transcript");
   }
 
   function openTranscript(id: string) {
     setTicketId(id);
     setSearchedId(id);
+    setOpenedConversationId("");
     setActiveTab("transcript");
+  }
+
+  function openConversation(id: string) {
+    setOpenedConversationId(id);
   }
 
   return (
@@ -306,7 +412,11 @@ export default function Home() {
                 </section>
 
                 {transcript ? (
-                  <section className="w-full rounded-xl border border-[#173452] bg-[#0d1117] px-6 py-5">
+                  <button
+                    className="w-full rounded-xl border border-[#173452] bg-[#0d1117] px-6 py-5 text-left transition hover:border-[#349bf3] hover:bg-[#101722]"
+                    onClick={() => openConversation(transcript.id)}
+                    type="button"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-bold text-[#349bf3]">
@@ -323,6 +433,63 @@ export default function Home() {
                     <p className="mt-4 text-sm text-[#8d8f96]">
                       {transcript.status}
                     </p>
+                    <p className="mt-4 text-xs font-bold text-[#349bf3]">
+                      Clique para abrir a conversa
+                    </p>
+                  </button>
+                ) : null}
+
+                {openedConversation ? (
+                  <section className="w-full overflow-hidden rounded-xl border border-[#173452] bg-[#0d1117]">
+                    <div className="flex items-center gap-3 border-b border-[#152233] bg-[#10141b] px-6 py-5">
+                      <img
+                        alt={`Foto do servidor ${openedConversation.serverName}`}
+                        className="h-12 w-12 rounded-full border border-[#28313c] bg-[#050608]"
+                        src={openedConversation.serverIcon}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase text-[#349bf3]">
+                          Servidor Discord
+                        </p>
+                        <h2 className="truncate text-lg font-extrabold">
+                          {openedConversation.serverName}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="space-y-5 px-6 py-6">
+                      {openedConversation.messages.map((message, index) => (
+                        <article
+                          className="grid grid-cols-[40px_1fr] gap-3"
+                          key={`${message.author}-${message.time}-${index}`}
+                        >
+                          <img
+                            alt={`Foto do Discord de ${message.author}`}
+                            className="h-10 w-10 rounded-full bg-[#050608]"
+                            src={message.avatar}
+                          />
+                          <div>
+                            <div className="flex flex-wrap items-baseline gap-2">
+                              <span
+                                className={`font-bold ${
+                                  message.role === "agent"
+                                    ? "text-[#349bf3]"
+                                    : "text-white"
+                                }`}
+                              >
+                                {message.author}
+                              </span>
+                              <span className="text-xs font-bold text-[#777a82]">
+                                {message.time}
+                              </span>
+                            </div>
+                            <p className="mt-1 rounded-lg border border-[#141e2b] bg-[#050608] px-4 py-3 text-sm leading-6 text-[#d4d4d8]">
+                              {message.content}
+                            </p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
                   </section>
                 ) : null}
               </>
